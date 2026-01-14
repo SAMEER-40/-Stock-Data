@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockIntel | Professional Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=3">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="brand">
+                <h1>Stock<span>Intel</span></h1>
+                <p>Professional Analytics</p>
+            </div>
+
+            <div class="market-label">Market Data</div>
+            <div id="company-list" class="company-list">
+                <div class="loading-spinner small"></div>
+            </div>
+
+            <div class="compare-section">
+                <button id="compare-btn" class="compare-btn" onclick="openCompareModal()">
+                    ⚖️ Compare Stocks
+                </button>
+            </div>
+
+            <div class="sidebar-footer">
+                Data provided by NSE<br>
+                Delayed by 15 mins
+            </div>
+        </aside>
+
+        <div id="compare-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Compare Two Stocks</h3>
+                    <button class="modal-close" onclick="closeCompareModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="compare-selectors">
+                        <div class="selector-group">
+                            <label>Stock 1</label>
+                            <select id="compare-stock1"></select>
+                        </div>
+                        <div class="vs-divider">VS</div>
+                        <div class="selector-group">
+                            <label>Stock 2</label>
+                            <select id="compare-stock2"></select>
+                        </div>
+                    </div>
+                    <button class="compare-submit-btn" onclick="runComparison()">Compare</button>
+
+                    <div id="compare-results" style="display: none;">
+                        <div class="compare-grid">
+                            <div class="compare-card" id="compare-card-1"></div>
+                            <div class="compare-card" id="compare-card-2"></div>
+                        </div>
+                        <div class="compare-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">Correlation</span>
+                                <span id="compare-correlation" class="metric-value">--</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Volatility Ratio</span>
+                                <span id="compare-vol-ratio" class="metric-value">--</span>
+                            </div>
+                        </div>
+                        <button class="visualise-btn" onclick="startVisualization()">📊 Visualise Charts</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div id="loading-overlay" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <p>Initializing Analytics Engine...</p>
+            </div>
+
+            <div id="dashboard-content" class="fade-in" style="display: none;">
+                <header class="stock-header">
+                    <div class="header-main">
+                        <div>
+                            <h2 id="stock-symbol">--</h2>
+                            <p id="stock-name">--</p>
+                        </div>
+                        <div id="stock-change-badge" class="badge">--%</div>
+                    </div>
+
+                    <div class="header-price">
+                        <div class="current-price">₹<span id="stock-price">--</span></div>
+                        <div class="price-label">Closing Price</div>
+                    </div>
+
+                    <div class="header-stats">
+                        <div class="stat-box">
+                            <label>52W High</label>
+                            <div class="value success">₹<span id="stock-high">--</span></div>
+                            <div class="progress-bar">
+                                <div id="price-range-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="stat-box">
+                            <label>52W Low</label>
+                            <div class="value danger">₹<span id="stock-low">--</span></div>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="dashboard-grid">
+                    <div class="charts-col">
+                        <div class="card chart-card" id="main-chart-card">
+                            <div class="card-header">
+                                <h3><span class="dot success"></span>Price History</h3>
+                                <div class="time-controls">
+                                    <button class="time-btn" onclick="updateTimeRange(30)">30D</button>
+                                    <button class="time-btn active" onclick="updateTimeRange(90)">90D</button>
+                                    <button class="time-btn" onclick="updateTimeRange(180)">180D</button>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="mainChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card chart-card" id="compare-chart-card" style="display: none; margin-top: 1.5rem;">
+                            <div class="card-header">
+                                <h3><span class="dot warning"></span><span id="compare-chart-title">Comparison
+                                        Stock</span></h3>
+                                <button class="icon-btn" onclick="closeComparison()" title="Close Comparison">✕</button>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="compareChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="analytics-col">
+                        <div class="card analytics-card">
+                            <div class="card-header">
+                                <h3>Technical Indicators</h3>
+                            </div>
+
+                            <div class="indicator-row">
+                                <div class="indicator-header">
+                                    <label>RSI (14)</label>
+                                    <span id="rsi-value" class="mono-value">--</span>
+                                </div>
+                                <div class="gauge-container">
+                                    <div class="gauge-bg"></div>
+                                    <div id="rsi-marker" class="gauge-marker" style="left: 50%"></div>
+                                </div>
+                                <div class="gauge-labels">
+                                    <span>Oversold</span>
+                                    <span id="rsi-status">Neutral</span>
+                                    <span>Overbought</span>
+                                </div>
+                            </div>
+
+                            <div class="indicator-row">
+                                <div class="indicator-header">
+                                    <label>Volatility (20d)</label>
+                                    <span id="volatility-value" class="mono-value">--%</span>
+                                </div>
+                                <div class="volatility-badge-container">
+                                    <span id="volatility-badge" class="badge neutral">-- Risk</span>
+                                    <span class="sub-label">Annualized Std Dev</span>
+                                </div>
+                            </div>
+
+                            <table class="ma-table">
+                                <thead>
+                                    <tr>
+                                        <th>Average</th>
+                                        <th>Value</th>
+                                        <th class="text-right">Signal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>SMA (7)</td>
+                                        <td id="ma7-value" class="mono-value">--</td>
+                                        <td id="ma7-signal" class="text-right font-bold">--</td>
+                                    </tr>
+                                    <tr>
+                                        <td>SMA (20)</td>
+                                        <td id="ma20-value" class="mono-value">--</td>
+                                        <td id="ma20-signal" class="text-right font-bold">--</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="indicator-row sentiment-row">
+                                <div class="indicator-header">
+                                    <label>Sentiment Index</label>
+                                    <span id="sentiment-value" class="mono-value">--</span>
+                                </div>
+                                <div class="sentiment-bar-container">
+                                    <div id="sentiment-bar" class="sentiment-bar" style="width: 50%"></div>
+                                </div>
+                                <div class="sentiment-info">
+                                    <span id="sentiment-label" class="badge neutral">--</span>
+                                    <span class="sub-label">ML Composite Score</span>
+                                </div>
+                            </div>
+
+                            <div class="indicator-row prediction-row">
+                                <div class="indicator-header">
+                                    <label>7-Day Forecast</label>
+                                    <span id="prediction-trend" class="mono-value">--</span>
+                                </div>
+                                <div class="prediction-info">
+                                    <span id="prediction-confidence" class="sub-label">Confidence: --%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <footer class="dashboard-footer">
+                    Powered by FastAPI • Python Backend • No React Overhead
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js?v=3"></script>
+</body>
+
+</html>
