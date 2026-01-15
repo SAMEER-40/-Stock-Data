@@ -42,45 +42,74 @@ async function selectCompany(symbol) {
     if (currentSymbol === symbol) return;
     currentSymbol = symbol;
 
+    // 1. Immediate Visual Feedback
     document.querySelectorAll('.company-item').forEach(el => el.classList.remove('active'));
     document.getElementById(`item-${symbol}`).classList.add('active');
 
-    const contentInfo = document.querySelector('.stock-header');
-    const chartArea = document.querySelector('.chart-container');
-    const analytics = document.querySelector('.analytics-col');
+    // dimmed state for sections
+    const headerEl = document.querySelector('.stock-header');
+    const chartEl = document.querySelector('.chart-container');
+    const analyticsEl = document.querySelector('.analytics-col');
 
-    if (contentInfo) contentInfo.style.opacity = '0.6';
-    if (chartArea) chartArea.style.opacity = '0.6';
-    if (analytics) analytics.style.opacity = '0.6';
+    [headerEl, chartEl, analyticsEl].forEach(el => {
+        if (el) el.style.opacity = '0.5';
+    });
 
-    try {
-        const [prices, summary, analyticsData, prediction, sentiment] = await Promise.all([
-            fetch(`${API_BASE}/data/${symbol}?days=180`).then(r => r.json()),
-            fetch(`${API_BASE}/summary/${symbol}`).then(r => r.json()),
-            fetch(`${API_BASE}/analytics/${symbol}`).then(r => r.json()),
-            fetch(`${API_BASE}/prediction/${symbol}`).then(r => r.json()).catch(() => null),
-            fetch(`${API_BASE}/sentiment/${symbol}`).then(r => r.json()).catch(() => null)
-        ]);
+    const isFirstLoad = document.getElementById('dashboard-content').style.display === 'none';
 
-        priceData = prices;
-        predictionData = prediction;
+    // 2. Define independent fetchers
+    const loadSummary = fetch(`${API_BASE}/summary/${symbol}`)
+        .then(r => r.json())
+        .then(data => {
+            updateHeader(data);
+            if (headerEl) headerEl.style.opacity = '1';
+        })
+        .catch(e => console.error('Summary err:', e));
 
-        updateHeader(summary);
-        updateAnalytics(analyticsData);
-        updateSentiment(sentiment);
-        updatePrediction(prediction);
-        updateChart(DAYS_DEFAULT);
+    const loadPrices = fetch(`${API_BASE}/data/${symbol}?days=180`)
+        .then(r => r.json())
+        .then(data => {
+            priceData = data;
+            updateChart(currentTimeRange);
+            if (chartEl) chartEl.style.opacity = '1';
+        })
+        .catch(e => console.error('Price err:', e));
 
-    } catch (err) {
-        console.error('Data load failed:', err);
-    } finally {
-        if (contentInfo) contentInfo.style.opacity = '1';
-        if (chartArea) chartArea.style.opacity = '1';
-        if (analytics) analytics.style.opacity = '1';
+    const loadAnalytics = fetch(`${API_BASE}/analytics/${symbol}`)
+        .then(r => r.json())
+        .then(data => {
+            updateAnalytics(data);
+            if (analyticsEl) analyticsEl.style.opacity = '1';
+        })
+        .catch(e => console.error('Analytics err:', e));
 
-        document.getElementById('loading-overlay').style.display = 'none';
-        document.getElementById('dashboard-content').style.display = 'block';
+    const loadPrediction = fetch(`${API_BASE}/prediction/${symbol}`)
+        .then(r => r.json())
+        .then(data => {
+            predictionData = data;
+            updatePrediction(data);
+        })
+        .catch(() => updatePrediction(null));
+
+    const loadSentiment = fetch(`${API_BASE}/sentiment/${symbol}`)
+        .then(r => r.json())
+        .then(data => updateSentiment(data))
+        .catch(() => updateSentiment(null));
+
+    // 3. Handle First Load vs Updates
+    if (isFirstLoad) {
+        // For first load, we wait for core data to avoid layout shifts
+        try {
+            await Promise.all([loadSummary, loadPrices, loadAnalytics]);
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+            [headerEl, chartEl, analyticsEl].forEach(el => { if (el) el.style.opacity = '1'; });
+        } catch (e) {
+            console.error('Init failed', e);
+        }
     }
+    // For switching stocks, we let them update independently (Progressive Rendering)
+    // No await needed here!
 }
 
 function updateHeader(summary) {
