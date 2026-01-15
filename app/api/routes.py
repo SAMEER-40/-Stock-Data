@@ -349,7 +349,13 @@ def get_prediction(
     try:
         # Extract close prices and dates
         close_prices = [p.close for p in prices]
-        dates = [p.date.strftime("%Y-%m-%d") for p in prices]
+        # Handle both datetime.date objects and string dates
+        dates = []
+        for p in prices:
+            if hasattr(p.date, 'strftime'):
+                dates.append(p.date.strftime("%Y-%m-%d"))
+            else:
+                dates.append(str(p.date)[:10])  # Ensure YYYY-MM-DD format
         
         # Generate predictions
         prediction_result = PredictionService.predict_prices(close_prices, dates)
@@ -416,20 +422,26 @@ def get_sentiment(
     summary = service.get_52_week_summary(symbol)
     price_change_pct = summary.get("change_52w_pct") if summary else None
     
-    # Calculate sentiment
-    sentiment_result = SentimentService.calculate_sentiment(
-        rsi=latest.rsi_14,
-        volatility=latest.volatility_20d,
-        price_change_pct=price_change_pct,
-        ma7=latest.ma_7,
-        ma20=latest.ma_20,
-        current_price=latest.close
-    )
-    
-    return {
-        "symbol": symbol,
-        **sentiment_result
-    }
+    try:
+        # Calculate sentiment
+        sentiment_result = SentimentService.calculate_sentiment(
+            rsi=latest.rsi_14,
+            volatility=latest.volatility_20d,
+            price_change_pct=price_change_pct,
+            ma7=latest.ma_7,
+            ma20=latest.ma_20,
+            current_price=latest.close
+        )
+        
+        return {
+            "symbol": symbol,
+            **sentiment_result
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Sentiment calculation failed: {str(e)}"
+        )
 
 
 # === Health Check ===
