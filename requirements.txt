@@ -14,6 +14,9 @@ numpy==1.26.3
 # Stock Data Source
 yfinance==0.2.35
 
+# Machine Learning
+scikit-learn==1.4.0
+
 # Utilities
 python-dotenv==1.0.0
 httpx==0.26.0
