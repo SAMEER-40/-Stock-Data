@@ -12,10 +12,6 @@ env/
 .vscode/
 .idea/
 
-# Database
-*.db
-data/
-
 # OS files
 .DS_Store
 Thumbs.db
