@@ -346,23 +346,29 @@ def get_prediction(
     # Sort by date ascending
     prices = sorted(prices, key=lambda p: p.date)
     
-    # Extract close prices and dates
-    close_prices = [p.close for p in prices]
-    dates = [p.date.strftime("%Y-%m-%d") for p in prices]
-    
-    # Generate predictions
-    prediction_result = PredictionService.predict_prices(close_prices, dates)
-    
-    if "error" in prediction_result:
+    try:
+        # Extract close prices and dates
+        close_prices = [p.close for p in prices]
+        dates = [p.date.strftime("%Y-%m-%d") for p in prices]
+        
+        # Generate predictions
+        prediction_result = PredictionService.predict_prices(close_prices, dates)
+        
+        if "error" in prediction_result:
+            raise HTTPException(
+                status_code=500,
+                detail=prediction_result["error"]
+            )
+        
+        return {
+            "symbol": symbol,
+            **prediction_result
+        }
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=prediction_result["error"]
+            detail=f"Prediction failed: {str(e)}"
         )
-    
-    return {
-        "symbol": symbol,
-        **prediction_result
-    }
 
 
 # === Sentiment Endpoint ===
