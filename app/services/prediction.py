@@ -5,7 +5,7 @@ Provides basic ML-based price forecasting using Linear Regression.
 This is a simplified model for demonstration purposes.
 """
 import numpy as np
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
 
@@ -105,12 +105,12 @@ class SentimentService:
     
     @staticmethod
     def calculate_sentiment(
-        rsi: float | None,
-        volatility: float | None,
-        price_change_pct: float | None,
-        ma7: float | None,
-        ma20: float | None,
-        current_price: float | None
+        rsi: Optional[float],
+        volatility: Optional[float],
+        price_change_pct: Optional[float],
+        ma7: Optional[float],
+        ma20: Optional[float],
+        current_price: Optional[float]
     ) -> Dict[str, Any]:
         """
         Calculate a mock sentiment index (0-100).
