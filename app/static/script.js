@@ -2,8 +2,10 @@ let currentSymbol = null;
 let currentChart = null;
 let compareChartInstance = null;
 let priceData = [];
+let comparePriceData = []; // New: Store comparison data globally
 let predictionData = null;
 const DAYS_DEFAULT = 90;
+let currentTimeRange = DAYS_DEFAULT; // New: Track active time range
 const API_BASE = '/api/v1';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -291,10 +293,15 @@ function updateChart(days) {
     }
 }
 
+// Update both charts when time range changes
 window.updateTimeRange = (days) => {
+    currentTimeRange = days;
     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
     event.target.classList.add('active');
     updateChart(days);
+    if (comparePriceData.length > 0) {
+        updateCompareChart(days);
+    }
 };
 
 function updateSentiment(data) {
@@ -445,7 +452,8 @@ async function startVisualization() {
 
     try {
         const prices = await fetch(`${API_BASE}/data/${symbol2}?days=180`).then(r => r.json());
-        renderCompareChart(prices, 90);
+        comparePriceData = prices; // Store globally
+        updateCompareChart(currentTimeRange); // Use current time range
 
         document.getElementById('main-chart-card').scrollIntoView({ behavior: 'smooth' });
 
@@ -454,80 +462,115 @@ async function startVisualization() {
     }
 }
 
-function renderCompareChart(data, days) {
+function updateCompareChart(days) {
     const ctx = document.getElementById('compareChart').getContext('2d');
-    const recentData = data.slice(-days);
+    const data = comparePriceData.slice(-days);
 
-    const labels = recentData.map(d => new Date(d.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
-    const prices = recentData.map(d => d.close);
-    const ma20 = recentData.map(d => d.ma_20);
+    // Safety check if no data
+    if (data.length === 0) return;
 
-    if (compareChartInstance) {
-        compareChartInstance.destroy();
-    }
+    const labels = data.map(d => new Date(d.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
+    const prices = data.map(d => d.close);
+    const ma20 = data.map(d => d.ma_20);
+    const ma7 = data.map(d => d.ma_7); // Calculate/Fetch MA7 if available
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.1)');
-    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+    if (!compareChartInstance) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(48, 52, 63, 0.1)'); // Match main chart style
+        gradient.addColorStop(1, 'rgba(48, 52, 63, 0)');
 
-    compareChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Price',
-                    data: prices,
-                    borderColor: '#0a0908',
-                    backgroundColor: gradient,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 0,
-                    fill: true
-                },
-                {
-                    label: 'MA 20',
-                    data: ma20,
-                    borderColor: '#f59e0b',
-                    borderWidth: 1.5,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    tension: 0.3,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index',
+        compareChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Price',
+                        data: prices,
+                        borderColor: '#0a0908',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        fill: true,
+                        order: 1
+                    },
+                    {
+                        label: 'MA 7',
+                        data: ma7,
+                        borderColor: '#3b82f6',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        fill: false,
+                        order: 2
+                    },
+                    {
+                        label: 'MA 20',
+                        data: ma20,
+                        borderColor: '#f59e0b',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        tension: 0.3,
+                        fill: false,
+                        order: 3
+                    }
+                ]
             },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    titleColor: '#0a0908',
-                    bodyColor: '#30343f',
-                    borderColor: '#eae0d5',
-                    borderWidth: 1,
-                    displayColors: true,
-                    padding: 10
-                }
-            },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#94a3b8', font: { size: 10 } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 750,
+                    easing: 'easeOutQuart'
                 },
-                y: {
-                    grid: { color: '#f1f5f9' },
-                    ticks: { color: '#94a3b8', font: { size: 10 } }
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                },
+                plugins: {
+                    legend: {
+                        display: true, // Enable legend
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            boxWidth: 10,
+                            usePointStyle: true,
+                            pointStyle: 'line',
+                            font: { size: 10, family: 'Inter' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#0a0908',
+                        bodyColor: '#30343f',
+                        borderColor: '#eae0d5',
+                        borderWidth: 1,
+                        displayColors: true,
+                        padding: 10
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { color: '#f1f5f9' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
                 }
             }
-        }
-    });
+        });
+    } else {
+        // Smooth update instead of destroy/create
+        compareChartInstance.data.labels = labels;
+        compareChartInstance.data.datasets[0].data = prices;
+        compareChartInstance.data.datasets[1].data = ma7;
+        compareChartInstance.data.datasets[2].data = ma20;
+        compareChartInstance.update('active');
+    }
 }
 
 function closeComparison() {
@@ -536,4 +579,5 @@ function closeComparison() {
         compareChartInstance.destroy();
         compareChartInstance = null;
     }
+    comparePriceData = []; // Clear data on close
 }
