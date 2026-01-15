@@ -46,7 +46,8 @@ from pathlib import Path
 static_path = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-@app.get("/", tags=["UI"])
+@app.get("/", tags=["UI"], include_in_schema=False)
+@app.head("/", tags=["UI"], include_in_schema=False)
 async def read_root():
     """Serve the dashboard UI."""
     return FileResponse(static_path / "index.html")
